@@ -1,0 +1,34 @@
+# Binaries
+claude-copywriter
+claude-copywriter.exe
+
+# Go build cache
+.cache/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Config with API keys (if you put keys in config.json)
+config-local.json
+
+# Test outputs
+*_copywriter.*
+*_researcher.*
+*_reviewer.*
+*_formatter.*
+*_summarizer.*
+*_editor.*
+
+# Logs
+*.log
+
+# Sensitive data directories - do not commit
+shared/
+inputs/

@@ -1,0 +1,10 @@
+This is a sample input file that demonstrates how to use Claude Copywriter.
+
+You can place any text content here that you want to transform using different roles like:
+- copywriter
+- editor  
+- researcher
+- formatter
+- natural
+
+This content will be processed by Claude AI according to the role you specify, along with any shared content you include.
