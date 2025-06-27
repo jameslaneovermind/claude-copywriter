@@ -14,6 +14,7 @@ type PerplexityClient struct {
 	APIKey     string
 	BaseURL    string
 	Model      string
+	MaxTokens  int
 	HTTPClient *http.Client
 }
 
@@ -45,11 +46,7 @@ type PerplexityResponse struct {
 		CompletionTokens int `json:"completion_tokens"`
 		TotalTokens      int `json:"total_tokens"`
 	} `json:"usage"`
-	Citations []struct {
-		Number int    `json:"number"`
-		URL    string `json:"url"`
-		Title  string `json:"title"`
-	} `json:"citations,omitempty"`
+	Citations json.RawMessage `json:"citations,omitempty"`
 }
 
 // PerplexityError represents an error response from Perplexity API
@@ -65,18 +62,22 @@ func (e PerplexityError) Error() string {
 }
 
 // NewPerplexityClient creates a new Perplexity API client
-func NewPerplexityClient(apiKey, baseURL, model string) *PerplexityClient {
+func NewPerplexityClient(apiKey, baseURL, model string, maxTokens int) *PerplexityClient {
 	if baseURL == "" {
 		baseURL = "https://api.perplexity.ai"
 	}
 	if model == "" {
 		model = "llama-3.1-sonar-large-128k-online"
 	}
+	if maxTokens == 0 {
+		maxTokens = 8192 // Default value for backward compatibility
+	}
 
 	return &PerplexityClient{
-		APIKey:  apiKey,
-		BaseURL: baseURL,
-		Model:   model,
+		APIKey:    apiKey,
+		BaseURL:   baseURL,
+		Model:     model,
+		MaxTokens: maxTokens,
 		HTTPClient: &http.Client{
 			Timeout: 120 * time.Second,
 		},
@@ -108,7 +109,7 @@ func (c *PerplexityClient) ResearchContent(query, systemPrompt string) (*Perplex
 	request := PerplexityRequest{
 		Model:       c.Model,
 		Messages:    messages,
-		MaxTokens:   4096,
+		MaxTokens:   c.MaxTokens, // Use configurable max tokens
 		Temperature: 0.2, // Lower temperature for more factual research
 		Stream:      false,
 	}
@@ -178,15 +179,48 @@ type Citation struct {
 
 // ExtractCitationsFromResponse extracts citations from Perplexity's response
 func (c *PerplexityClient) ExtractCitationsFromResponse(response *PerplexityResponse) []Citation {
-	citations := make([]Citation, len(response.Citations))
-	for i, citation := range response.Citations {
-		citations[i] = Citation{
-			Number: citation.Number,
-			URL:    citation.URL,
-			Title:  citation.Title,
+	if len(response.Citations) == 0 {
+		return []Citation{}
+	}
+	
+	// Try to parse as array of citation objects first
+	var citationsArray []struct {
+		Number int    `json:"number"`
+		URL    string `json:"url"`
+		Title  string `json:"title"`
+	}
+	
+	if err := json.Unmarshal(response.Citations, &citationsArray); err == nil {
+		citations := make([]Citation, len(citationsArray))
+		for i, citation := range citationsArray {
+			citations[i] = Citation{
+				Number: citation.Number,
+				URL:    citation.URL,
+				Title:  citation.Title,
+			}
+		}
+		return citations
+	}
+	
+	// If that fails, try parsing as a string (maybe it's a stringified JSON)
+	var citationsString string
+	if err := json.Unmarshal(response.Citations, &citationsString); err == nil {
+		// Try to parse the string as JSON
+		if err := json.Unmarshal([]byte(citationsString), &citationsArray); err == nil {
+			citations := make([]Citation, len(citationsArray))
+			for i, citation := range citationsArray {
+				citations[i] = Citation{
+					Number: citation.Number,
+					URL:    citation.URL,
+					Title:  citation.Title,
+				}
+			}
+			return citations
 		}
 	}
-	return citations
+	
+	// If all parsing fails, return empty slice
+	return []Citation{}
 }
 
 // GetTokenUsage returns the total tokens used in the response

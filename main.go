@@ -12,12 +12,13 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	APIKey           string            `json:"api_key"`
-	BaseURL          string            `json:"base_url"`
-	Model            string            `json:"model"`
-	PerplexityAPIKey string            `json:"perplexity_api_key"`
-	PerplexityModel  string            `json:"perplexity_model"`
-	Roles            map[string]string `json:"roles"`
+	APIKey              string            `json:"api_key"`
+	BaseURL             string            `json:"base_url"`
+	Model               string            `json:"model"`
+	PerplexityAPIKey    string            `json:"perplexity_api_key"`
+	PerplexityModel     string            `json:"perplexity_model"`
+	PerplexityMaxTokens int               `json:"perplexity_max_tokens"`
+	Roles               map[string]string `json:"roles"`
 }
 
 // ProcessingResult holds the result of processing a file
@@ -62,7 +63,7 @@ func main() {
 	// Create Perplexity client if research is needed
 	var perplexityClient *PerplexityClient
 	if *research != "" || *researchOnly {
-		perplexityClient = NewPerplexityClient(config.PerplexityAPIKey, "", config.PerplexityModel)
+		perplexityClient = NewPerplexityClient(config.PerplexityAPIKey, "", config.PerplexityModel, config.PerplexityMaxTokens)
 	}
 
 	// Handle list shared content command
@@ -286,11 +287,12 @@ func printBatchResults(results []ProcessingResult) {
 // getDefaultConfig returns a default configuration
 func getDefaultConfig() *Config {
 	return &Config{
-		APIKey:          "",
-		BaseURL:         "https://api.anthropic.com",
-		Model:           "claude-3-sonnet-20240229",
-		PerplexityAPIKey: "",
-		PerplexityModel: "llama-3.1-sonar-large-128k-online",
+		APIKey:              "",
+		BaseURL:             "https://api.anthropic.com",
+		Model:               "claude-3-sonnet-20240229",
+		PerplexityAPIKey:    "",
+		PerplexityModel:     "llama-3.1-sonar-large-128k-online",
+		PerplexityMaxTokens: 8192, // High default for detailed research
 		Roles: map[string]string{
 			"copywriter": "You are an expert copywriter with 10+ years of experience. Transform the input content into compelling, engaging copy that drives action. Focus on clarity, persuasion, and emotional connection. Use proven copywriting frameworks like AIDA, PAS, or Before-After-Bridge when appropriate. Make the content more engaging while maintaining accuracy.",
 			"researcher": "You are a thorough researcher and fact-checker. Analyze the input content and provide detailed research insights, additional context, fact-checking, and citations where appropriate. Identify gaps in information, suggest areas for deeper investigation, and provide relevant background information that adds value to the original content.",
