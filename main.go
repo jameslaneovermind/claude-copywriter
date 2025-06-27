@@ -12,10 +12,12 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	APIKey  string            `json:"api_key"`
-	BaseURL string            `json:"base_url"`
-	Model   string            `json:"model"`
-	Roles   map[string]string `json:"roles"`
+	APIKey           string            `json:"api_key"`
+	BaseURL          string            `json:"base_url"`
+	Model            string            `json:"model"`
+	PerplexityAPIKey string            `json:"perplexity_api_key"`
+	PerplexityModel  string            `json:"perplexity_model"`
+	Roles            map[string]string `json:"roles"`
 }
 
 // ProcessingResult holds the result of processing a file
@@ -43,6 +45,8 @@ func main() {
 		includeShared = flag.String("include", "", "Include shared content (filename or comma-separated list)")
 		sharedDir     = flag.String("shared-dir", "shared", "Directory containing shared content files")
 		listShared    = flag.Bool("list-shared", false, "List available shared content files")
+		research      = flag.String("research", "", "Perform research using Perplexity API before processing")
+		researchOnly  = flag.Bool("research-only", false, "Only perform research, don't process with Claude")
 	)
 	flag.Parse()
 
@@ -54,6 +58,12 @@ func main() {
 
 	// Create Claude client
 	client := NewClaudeClient(config.APIKey, config.BaseURL, config.Model)
+
+	// Create Perplexity client if research is needed
+	var perplexityClient *PerplexityClient
+	if *research != "" || *researchOnly {
+		perplexityClient = NewPerplexityClient(config.PerplexityAPIKey, "", config.PerplexityModel)
+	}
 
 	// Handle list shared content command
 	if *listShared {
@@ -82,6 +92,46 @@ func main() {
 		if *customPrompt != "" {
 			fmt.Printf("Custom prompt: %s\n", truncateString(*customPrompt, 100))
 		}
+		if *research != "" {
+			fmt.Printf("Research query: %s\n", truncateString(*research, 100))
+		}
+	}
+
+	// Perform research if requested
+	var researchContent string
+	if *research != "" && perplexityClient != nil {
+		if *verbose {
+			fmt.Printf("🔍 Performing research with Perplexity...\n")
+		}
+		
+		researchResponse, err := perplexityClient.ResearchContent(*research, "You are a research assistant. Provide comprehensive, accurate information with proper citations.")
+		if err != nil {
+			log.Fatalf("Research failed: %v", err)
+		}
+		
+		researchContent = perplexityClient.FormatResearchOutput(researchResponse)
+		
+		if *verbose {
+			fmt.Printf("📊 Research tokens used: %d\n", perplexityClient.GetTokenUsage(researchResponse))
+		}
+		
+		// If research-only mode, save research and exit
+		if *researchOnly {
+			if *inputFile == "" {
+				log.Fatal("Input file is required even in research-only mode to determine output filename")
+			}
+			
+			if *outputFile == "" {
+				*outputFile = generateOutputFilename(*inputFile, "research")
+			}
+			
+			if err := writeFileContent(*outputFile, researchContent); err != nil {
+				log.Fatalf("Failed to write research output: %v", err)
+			}
+			
+			fmt.Printf("✅ Research completed: %s\n", *outputFile)
+			return
+		}
 	}
 
 	// Load shared content if specified
@@ -91,6 +141,17 @@ func main() {
 		sharedContent, err = loadSharedContent(*includeShared, *sharedDir, *verbose)
 		if err != nil {
 			log.Fatalf("Failed to load shared content: %v", err)
+		}
+	}
+	
+	// Add research content to shared content if research was performed
+	if researchContent != "" {
+		if sharedContent != "" {
+			sharedContent += "\n\n---\n\n"
+		}
+		sharedContent += fmt.Sprintf("RESEARCH FINDINGS:\n%s", researchContent)
+		if *verbose {
+			fmt.Printf("🔬 Including research findings in context\n")
 		}
 	}
 
@@ -153,6 +214,11 @@ func loadConfig(filename string) (*Config, error) {
 	// Use environment variable if API key not in config
 	if config.APIKey == "" {
 		config.APIKey = os.Getenv("ANTHROPIC_API_KEY")
+	}
+	
+	// Use environment variable for Perplexity API key if not in config
+	if config.PerplexityAPIKey == "" {
+		config.PerplexityAPIKey = os.Getenv("PERPLEXITY_API_KEY")
 	}
 
 	return &config, nil
@@ -220,9 +286,11 @@ func printBatchResults(results []ProcessingResult) {
 // getDefaultConfig returns a default configuration
 func getDefaultConfig() *Config {
 	return &Config{
-		APIKey:  "",
-		BaseURL: "https://api.anthropic.com",
-		Model:   "claude-3-sonnet-20240229",
+		APIKey:          "",
+		BaseURL:         "https://api.anthropic.com",
+		Model:           "claude-3-sonnet-20240229",
+		PerplexityAPIKey: "",
+		PerplexityModel: "llama-3.1-sonar-large-128k-online",
 		Roles: map[string]string{
 			"copywriter": "You are an expert copywriter with 10+ years of experience. Transform the input content into compelling, engaging copy that drives action. Focus on clarity, persuasion, and emotional connection. Use proven copywriting frameworks like AIDA, PAS, or Before-After-Bridge when appropriate. Make the content more engaging while maintaining accuracy.",
 			"researcher": "You are a thorough researcher and fact-checker. Analyze the input content and provide detailed research insights, additional context, fact-checking, and citations where appropriate. Identify gaps in information, suggest areas for deeper investigation, and provide relevant background information that adds value to the original content.",

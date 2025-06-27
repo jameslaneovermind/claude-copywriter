@@ -244,7 +244,7 @@ func isTextContent(content string) bool {
 	return ratio > 0.90 // Lowered threshold to be more permissive
 }
 
-// combineContent combines the main content with shared content and custom prompt
+// combineContent combines the main content with shared content, research, and custom prompt
 func combineContent(mainContent, sharedContent, customPrompt string, verbose bool) string {
 	var sections []string
 

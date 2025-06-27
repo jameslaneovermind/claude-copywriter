@@ -26,9 +26,13 @@ config-local.json
 *_summarizer.*
 *_editor.*
 
+# Test files and temporary content
+tests/
+
 # Logs
 *.log
 
 # Sensitive data directories - do not commit
 shared/
 inputs/
+done/
