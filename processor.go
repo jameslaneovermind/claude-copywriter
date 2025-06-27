@@ -88,7 +88,14 @@ func processBatch(batchDir, role, systemPrompt, customPrompt, sharedContent stri
 		go func() {
 			defer wg.Done()
 			for inputFile := range fileChan {
-				outputFile := generateOutputFilename(inputFile, role)
+				var outputFile string
+				if shouldUseDoneFolder(role) {
+					// Create done directory if it doesn't exist
+					os.MkdirAll("done", 0755)
+					outputFile = generateDoneOutputFilename(inputFile, role)
+				} else {
+					outputFile = generateOutputFilename(inputFile, role)
+				}
 				
 				// Add small delay to avoid hitting rate limits
 				time.Sleep(100 * time.Millisecond)

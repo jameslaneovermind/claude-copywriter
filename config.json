@@ -4,7 +4,7 @@
   "model": "claude-sonnet-4-20250514",
   "perplexity_api_key": "",
   "perplexity_model": "sonar-pro",
-  "perplexity_max_tokens": 12288,
+  "perplexity_max_tokens": 210288,
   "roles": {
     "copywriter": "You are an expert copywriter with 10+ years of experience. Transform the input content into compelling, engaging copy that drives action. Focus on clarity, persuasion, and emotional connection. Use proven copywriting frameworks like AIDA, PAS, or Before-After-Bridge when appropriate. Make the content more engaging while maintaining accuracy.",
     

@@ -29,6 +29,9 @@ config-local.json
 # Test files and temporary content
 tests/
 
+# Research outputs (generated content)
+research/
+
 # Logs
 *.log
 
@@ -36,3 +39,4 @@ tests/
 shared/
 inputs/
 done/
+research/

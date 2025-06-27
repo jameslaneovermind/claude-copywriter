@@ -122,15 +122,30 @@ func main() {
 				log.Fatal("Input file is required even in research-only mode to determine output filename")
 			}
 			
-			if *outputFile == "" {
-				*outputFile = generateOutputFilename(*inputFile, "research")
+			// Create research directory if it doesn't exist
+			if err := os.MkdirAll("research", 0755); err != nil {
+				log.Fatalf("Failed to create research directory: %v", err)
 			}
 			
-			if err := writeFileContent(*outputFile, researchContent); err != nil {
+			// Use custom output file or generate one in research folder
+			var outputPath string
+			if *outputFile != "" {
+				outputPath = *outputFile
+			} else {
+				outputPath = generateResearchOutputFilename(*inputFile)
+			}
+			
+			// Combine input content with research results
+			combinedContent, err := combineInputWithResearch(*inputFile, researchContent)
+			if err != nil {
+				log.Fatalf("Failed to combine input with research: %v", err)
+			}
+			
+			if err := writeFileContent(outputPath, combinedContent); err != nil {
 				log.Fatalf("Failed to write research output: %v", err)
 			}
 			
-			fmt.Printf("✅ Research completed: %s\n", *outputFile)
+			fmt.Printf("✅ Research completed: %s\n", outputPath)
 			return
 		}
 	}
@@ -174,7 +189,15 @@ func main() {
 
 	// Generate output filename if not provided
 	if *outputFile == "" {
-		*outputFile = generateOutputFilename(*inputFile, *role)
+		if shouldUseDoneFolder(*role) {
+			// Create done directory if it doesn't exist
+			if err := os.MkdirAll("done", 0755); err != nil {
+				log.Fatalf("Failed to create done directory: %v", err)
+			}
+			*outputFile = generateDoneOutputFilename(*inputFile, *role)
+		} else {
+			*outputFile = generateOutputFilename(*inputFile, *role)
+		}
 	}
 
 	// Process single file
@@ -251,6 +274,22 @@ func generateOutputFilename(inputFile, role string) string {
 	ext := filepath.Ext(inputFile)
 	base := strings.TrimSuffix(inputFile, ext)
 	return fmt.Sprintf("%s_%s%s", base, role, ext)
+}
+
+// generateResearchOutputFilename creates an output filename for research in the research/ folder
+func generateResearchOutputFilename(inputFile string) string {
+	ext := filepath.Ext(inputFile)
+	baseName := filepath.Base(inputFile)
+	baseWithoutExt := strings.TrimSuffix(baseName, ext)
+	return fmt.Sprintf("research/%s_research%s", baseWithoutExt, ext)
+}
+
+// generateDoneOutputFilename creates an output filename for completed content in the done/ folder
+func generateDoneOutputFilename(inputFile, role string) string {
+	ext := filepath.Ext(inputFile)
+	baseName := filepath.Base(inputFile)
+	baseWithoutExt := strings.TrimSuffix(baseName, ext)
+	return fmt.Sprintf("done/%s_%s%s", baseWithoutExt, role, ext)
 }
 
 // truncateString truncates a string to specified length
@@ -499,6 +538,37 @@ func findSharedFiles(sharedDir string) ([]string, error) {
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// combineInputWithResearch combines the original input content with research results
+func combineInputWithResearch(inputFile, researchContent string) (string, error) {
+	// Read the original input file content
+	inputContent, err := readFileContent(inputFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to read input file: %w", err)
+	}
+	
+	// Combine input content with research
+	combined := fmt.Sprintf("%s\n\n---\n\n## Research Results\n\n%s", inputContent, researchContent)
+	
+	return combined, nil
+}
+
+// shouldUseDoneFolder determines if a role should save to the done/ folder
+func shouldUseDoneFolder(role string) bool {
+	doneRoles := []string{
+		"natural", "copywriter", "researcher", "reviewer", "formatter", 
+		"summarizer", "editor", "seo-optimizer", "social-media", 
+		"technical-writer", "blog-writer", "email-marketer", 
+		"academic-writer", "creative-writer", "analyst", "translator",
+	}
+	
+	for _, doneRole := range doneRoles {
+		if role == doneRole {
 			return true
 		}
 	}
