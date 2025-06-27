@@ -1,4 +1,9 @@
+<div align="center">
+
+<img src="https://github.com/user-attachments/assets/18e50d59-3c1f-4577-8c27-372dcecc244e" width="300" height="300">
+
 # Claude Copywriting System
+</div>
 
 A powerful Go-based CLI tool that processes text files through Claude AI with different roles and prompts.
 
